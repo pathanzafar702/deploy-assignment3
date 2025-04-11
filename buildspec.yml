@@ -1,0 +1,22 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region ca-central-1 | docker login --username AWS --password-stdin ${AWS::AccountId}.dkr.ecr.ca-central-1.amazonaws.com
+  build:
+    commands:
+      - echo Building the Docker image...
+      - docker build -t pathan-ecr .
+      - docker tag pathan-ecr:latest ${AWS::AccountId}.dkr.ecr.ca-central-1.amazonaws.com/pathan-ecr:latest
+  post_build:
+    commands:
+      - echo Pushing the Docker image...
+      - docker push ${AWS::AccountId}.dkr.ecr.ca-central-1.amazonaws.com/pathan-ecr:latest
+      - echo Running container scanning...
+      - aws ecr start-image-scan --repository-name pathan-ecr --image-id imageTag=latest --region ca-central-1
+      - echo Writing imagedefinitions.json...
+      - printf '[{"name":"pathan-container","imageUri":"%s"}]' ${AWS::AccountId}.dkr.ecr.ca-central-1.amazonaws.com/pathan-ecr:latest > imagedefinitions.json
+artifacts:
+  files:
+    - imagedefinitions.json
